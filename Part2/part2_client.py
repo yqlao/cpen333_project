@@ -1,8 +1,9 @@
-# Group#:
+# Group#: A13
 # Student Names:
 
 #Content of client.py; to complete/implement
 
+from logging import root
 from tkinter import *
 import socket
 import threading
@@ -15,6 +16,63 @@ class ChatClient:
     It uses the tkinter module to create the GUI for the chat client.
     """
     # To implement
+
+    def __init__(self, window):
+        # --- Initialize GUI ---
+        self.window = window
+
+        self.window.title("Chat Client")
+        self.window.configure(background="#def2fe")
+        self.window.geometry("350x450")
+
+        Label(self.window, text="Let's chit chat!").pack()
+
+        self.Text = Text(self.window, state=DISABLED) # Read-only
+        self.Text.pack(pady=5)
+
+        input_frame = Frame(self.window, bg="#def2fe")
+        input_frame.pack(pady=5, padx=10, fill=X)
+        self.entry = Entry(input_frame, width=30)
+        self.entry.pack(side=LEFT, padx=(0,5))
+
+        Button(input_frame, text="Send", command=self.send_message).pack(side=LEFT)        
+        Button(self.window, text="Exit", command=self.window.destroy).pack(anchor="e", padx=10, pady=10)
+
+        # --- Initialize Socket Connection ---
+        self.HOST = '127.0.0.1'
+        self.PORT = 12345
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        try:
+            self.s.connect((self.HOST, self.PORT))
+            threading.Thread(target=self.receive_message, daemon=True).start()
+        except:
+            print("[Client] Failed to establish connection to server.")
+
+        
+    def send_message(self):
+        message = self.entry.get()
+        if message.strip():
+            self.s.sendall(message.encode('utf-8'))
+            self.Text.config(state=NORMAL)
+            self.Text.insert(END, f"You: {message}\n")
+            self.Text.see(END)
+            self.Text.config(state=DISABLED)
+            self.entry.delete(0, END)
+
+    def receive_message(self):
+        while True:
+            try:
+                message = self.s.recv(1024).decode('utf-8')
+                if message:
+                    self.Text.config(state=NORMAL) # Enable editing to insert the received message
+                    self.Text.insert(END, message + '\n')
+                    self.Text.see(END) # Auto-scroll
+                    self.Text.config(state=DISABLED) # Disable editing again
+            except:
+                print("[Client] Connection to server lost.")
+                break
+    
 
 def main(): #Note that the main function is outside the ChatClient class
     window = Tk()
