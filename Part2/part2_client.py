@@ -3,7 +3,6 @@
 
 #Content of client.py; to complete/implement
 
-from logging import root
 from tkinter import *
 import socket
 import threading
@@ -21,7 +20,7 @@ class ChatClient:
         # --- Initialize GUI ---
         self.window = window
 
-        self.window.title("Chat Client")
+        self.window.title("Chat Client - " + current_process().name) # Display the current process name in the title
         self.window.configure(background="#def2fe")
         self.window.geometry("350x450")
 
@@ -41,10 +40,10 @@ class ChatClient:
         # --- Initialize Socket Connection ---
         self.HOST = '127.0.0.1'
         self.PORT = 12345
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
-            self.s.connect((self.HOST, self.PORT))
+            self.client_socket.connect((self.HOST, self.PORT))
             threading.Thread(target=self.receive_message, daemon=True).start()
         except:
             print("[Client] Failed to establish connection to server.")
@@ -53,17 +52,13 @@ class ChatClient:
     def send_message(self):
         message = self.entry.get()
         if message.strip():
-            self.s.sendall(message.encode('utf-8'))
-            self.Text.config(state=NORMAL)
-            self.Text.insert(END, f"You: {message}\n")
-            self.Text.see(END)
-            self.Text.config(state=DISABLED)
-            self.entry.delete(0, END)
+            self.client_socket.sendall(message.encode('utf-8')) # Send the message to the server
+            self.entry.delete(0, END) # Clear the entry field after sending the message
 
     def receive_message(self):
         while True:
             try:
-                message = self.s.recv(1024).decode('utf-8')
+                message = self.client_socket.recv(1024).decode('utf-8')
                 if message:
                     self.Text.config(state=NORMAL) # Enable editing to insert the received message
                     self.Text.insert(END, message + '\n')
