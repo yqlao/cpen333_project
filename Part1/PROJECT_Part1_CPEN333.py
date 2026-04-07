@@ -169,7 +169,9 @@ class Game():
         #update the score
 
         #new prey
-        if NewSnakeCoordinates == self.preyPosition:
+        CAPTURE_THRESHOLD = 2
+        if (abs(NewSnakeCoordinates[0] - self.preyPosition[0]) <= CAPTURE_THRESHOLD and
+            abs(NewSnakeCoordinates[1] - self.preyPosition[1] <= CAPTURE_THRESHOLD)):
             self.score += 1
             self.queue.put({"score": self.score})
             self.createNewPrey()
@@ -178,8 +180,7 @@ class Game():
 
         #method to check if game is over
             
-        self.queue.put({"move": self.snakeCoordinates})
-
+        self.queue.put({"move": self.snakeCoordinates.copy()})
         self.isGameOver(NewSnakeCoordinates)
 
     def calculateNewCoordinates(self) -> tuple:
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     WINDOW_HEIGHT = 300 
     SNAKE_ICON_WIDTH = 15
     #add the specified constant PREY_ICON_WIDTH here  
-    PREY_ICON_WIDTH = 5    
+    PREY_ICON_WIDTH = 15   
 
     BACKGROUND_COLOUR = "black"   #you may change this colour if you wish
     ICON_COLOUR = "white"        #you may change this colour if you wish
