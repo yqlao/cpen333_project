@@ -194,6 +194,8 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
+        #FINE IM PRETTY SURE IT SHOULD BE THIS
+
         move_basis = 5 #how much they move
         currentDirection = self.direction
 
@@ -223,7 +225,7 @@ class Game():
         #bit itself
         selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
         #pass any wall
-        wallHit = (x < 0 or x > WINDOW_WIDTH or y < 0 or y > WINDOW_HEIGHT)
+        wallHit = (x < 0 or x >= WINDOW_WIDTH or y < 0 or y >= WINDOW_HEIGHT)
         #gameover task 
 
         if selfBite or wallHit:
@@ -244,15 +246,14 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
-        x = random.randint(0, WINDOW_WIDTH)
-        y = random.randint(0, WINDOW_HEIGHT)
-        constant_prey_dist = 5
+        x = random.randint(THRESHOLD, WINDOW_WIDTH)
+        y = random.randint(THRESHOLD, WINDOW_HEIGHT)
 
         #adding prey
         #ensure it doesnt add where snake is at
         while (x, y) in self.snakeCoordinates:
-            x = random.randint(0, WINDOW_WIDTH)
-            y = random.randint(0, WINDOW_HEIGHT)
+            x = random.randint(THRESHOLD, WINDOW_WIDTH)
+            y = random.randint(THRESHOLD, WINDOW_HEIGHT)
         
         self.preyPosition = (x,y)
 
