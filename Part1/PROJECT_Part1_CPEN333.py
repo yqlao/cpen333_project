@@ -253,9 +253,9 @@ class Game():
         DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         while True:
+            prey_touch_snake = False
             x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
             y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
-            prey_touch_snake = False
 
             for (snake_x, snake_y) in self.snakeCoordinates:
                 x_closeness = abs(x - snake_x)
@@ -285,7 +285,7 @@ if __name__ == "__main__":
     WINDOW_HEIGHT = 300
     SNAKE_ICON_WIDTH = 10
     #add the specified constant PREY_ICON_WIDTH here  
-    PREY_ICON_WIDTH = 10
+    PREY_ICON_WIDTH = 7
 
     BACKGROUND_COLOUR = "black"   #you may change this colour if you wish
     ICON_COLOUR = "white"        #you may change this colour if you wish
