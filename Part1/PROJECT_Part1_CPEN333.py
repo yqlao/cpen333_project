@@ -125,6 +125,7 @@ class Game():
             are generated.
         """
         SPEED = 0.15     #speed of snake updates (sec)
+        prevScore = self.score
         while self.gameNotOver:
             #complete the method implementation below
             self.move()
@@ -169,9 +170,9 @@ class Game():
         #update the score
 
         #new prey
-        CAPTURE_THRESHOLD = 2
+        CAPTURE_THRESHOLD = 15
         if (abs(NewSnakeCoordinates[0] - self.preyPosition[0]) <= CAPTURE_THRESHOLD and
-            abs(NewSnakeCoordinates[1] - self.preyPosition[1] <= CAPTURE_THRESHOLD)):
+            abs(NewSnakeCoordinates[1] - self.preyPosition[1]) <= CAPTURE_THRESHOLD):
             self.score += 1
             self.queue.put({"score": self.score})
             self.createNewPrey()
@@ -195,11 +196,11 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
-        #FINE IM PRETTY SURE IT SHOULD BE THIS
-
-        move_basis = 5 #how much they move
+        move_basis = 10 #how much snake moves in one go
         currentDirection = self.direction
 
+        #We return a tuple that represents next positioning of snake
+        #   with if-else statements.
         if currentDirection == "Left":
             return (lastX - move_basis, lastY)
         elif currentDirection == "Right":
@@ -208,7 +209,7 @@ class Game():
             return (lastX, lastY - move_basis)
         elif currentDirection == "Down":
             return (lastX, lastY + move_basis)
-        #in tkinter y increases downward
+        #in tkinter, y increases downward
 
 
     def isGameOver(self, snakeCoordinates) -> None:
@@ -222,13 +223,15 @@ class Game():
         x, y = snakeCoordinates
         #complete the method implementation below
 
-        #boolean
-        #bit itself
-        selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
-        #pass any wall
-        wallHit = (x < 0 or x >= WINDOW_WIDTH or y < 0 or y >= WINDOW_HEIGHT)
-        #gameover task 
+        #We use boolean to check whether the snake has:
 
+        # --- Passed any wall -----
+        wallHit = (x < 0 or x >= WINDOW_WIDTH or y < 0 or y >= WINDOW_HEIGHT)
+
+        # --- Bit itself ----------
+        selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
+    
+        #If either is True, it's Game Over
         if selfBite or wallHit:
             self.gameNotOver = False
             self.queue.put({"game_over":True})
@@ -247,15 +250,16 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
+        #We set the random coordinates of the new prey
         x = random.randint(THRESHOLD, WINDOW_WIDTH)
         y = random.randint(THRESHOLD, WINDOW_HEIGHT)
 
-        #adding prey
-        #ensure it doesnt add where snake is at
+        #If random coordinates lie within the current snake
         while (x, y) in self.snakeCoordinates:
             x = random.randint(THRESHOLD, WINDOW_WIDTH)
             y = random.randint(THRESHOLD, WINDOW_HEIGHT)
         
+        #Setting tuple for the prey position
         self.preyPosition = (x,y)
 
         preyCoordinates = (
@@ -271,7 +275,7 @@ class Game():
 if __name__ == "__main__":
     #some constants for our GUI
     WINDOW_WIDTH = 500           
-    WINDOW_HEIGHT = 300 
+    WINDOW_HEIGHT = 500 #made it square, equal
     SNAKE_ICON_WIDTH = 15
     #add the specified constant PREY_ICON_WIDTH here  
     PREY_ICON_WIDTH = 15   
