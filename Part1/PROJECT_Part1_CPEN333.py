@@ -125,7 +125,7 @@ class Game():
             are generated.
         """
         SPEED = 0.15     #speed of snake updates (sec)
-        prevScore = self.score
+        
         while self.gameNotOver:
             #complete the method implementation below
             self.move()
@@ -169,18 +169,18 @@ class Game():
         self.snakeCoordinates.append(NewSnakeCoordinates)
         #update the score
 
-        #new prey
-        CAPTURE_THRESHOLD = 15
-        if (abs(NewSnakeCoordinates[0] - self.preyPosition[0]) <= CAPTURE_THRESHOLD and
-            abs(NewSnakeCoordinates[1] - self.preyPosition[1]) <= CAPTURE_THRESHOLD):
+        x_closeness = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
+        y_closeness = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
+        EAT_PREY_DISTANCE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+
+        if (x_closeness <= EAT_PREY_DISTANCE and
+            y_closeness <= EAT_PREY_DISTANCE):
             self.score += 1
             self.queue.put({"score": self.score})
             self.createNewPrey()
         else:
             self.snakeCoordinates.pop(0)
 
-        #method to check if game is over
-            
         self.queue.put({"move": self.snakeCoordinates.copy()})
         self.isGameOver(NewSnakeCoordinates)
 
@@ -250,18 +250,25 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
-        #We set the random coordinates of the new prey
-        x = random.randint(THRESHOLD, WINDOW_WIDTH)
-        y = random.randint(THRESHOLD, WINDOW_HEIGHT)
+        DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
-        #If random coordinates lie within the current snake
-        while (x, y) in self.snakeCoordinates:
-            x = random.randint(THRESHOLD, WINDOW_WIDTH)
-            y = random.randint(THRESHOLD, WINDOW_HEIGHT)
-        
-        #Setting tuple for the prey position
+        while True:
+            x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+            y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            prey_touch_snake = False
+
+            for (snake_x, snake_y) in self.snakeCoordinates:
+                x_closeness = abs(x - snake_x)
+                y_closeness = abs(y - snake_y)
+                if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
+                    prey_touch_snake = True
+                    break
+            
+            if prey_touch_snake != True:
+                break
+
         self.preyPosition = (x,y)
-
+        
         preyCoordinates = (
             x - PREY_ICON_WIDTH // 2,
             y - PREY_ICON_WIDTH // 2,
@@ -275,10 +282,10 @@ class Game():
 if __name__ == "__main__":
     #some constants for our GUI
     WINDOW_WIDTH = 500           
-    WINDOW_HEIGHT = 500 #made it square, equal
-    SNAKE_ICON_WIDTH = 15
+    WINDOW_HEIGHT = 300
+    SNAKE_ICON_WIDTH = 10
     #add the specified constant PREY_ICON_WIDTH here  
-    PREY_ICON_WIDTH = 15   
+    PREY_ICON_WIDTH = 10
 
     BACKGROUND_COLOUR = "black"   #you may change this colour if you wish
     ICON_COLOUR = "white"        #you may change this colour if you wish
