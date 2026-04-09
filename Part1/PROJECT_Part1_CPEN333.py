@@ -128,10 +128,11 @@ class Game():
         
         while self.gameNotOver:
             #complete the method implementation below
-            self.move()
-            time.sleep(SPEED)
 
-            pass #remove this line from your implementation
+            #the snake moves while the game is not over
+            self.move()
+            #to call the speed of the snake 
+            time.sleep(SPEED)
 
     def whenAnArrowKeyIsPressed(self, e) -> None:
         """ 
@@ -166,22 +167,34 @@ class Game():
         NewSnakeCoordinates = self.calculateNewCoordinates()
         #complete the method implementation below
 
+        #Make snake longer by adding NewSnakeCoordinates to the list
         self.snakeCoordinates.append(NewSnakeCoordinates)
-        #update the score
 
-        x_closeness = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
-        y_closeness = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
+        #Formula to find the maximum distance between snake and prey 
+        # to ensure when snake touches prey it eats it
+        # (additional info on documentation)
         EAT_PREY_DISTANCE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
-        if (x_closeness <= EAT_PREY_DISTANCE and
-            y_closeness <= EAT_PREY_DISTANCE):
+        #Finding distance between prey and snake of x and y coordinates
+        x_closeness = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
+        y_closeness = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
+        
+        #If both x and y distance fall under the maximum distance, add one point to the score
+        #   and add new prey 
+        if (x_closeness <= EAT_PREY_DISTANCE and y_closeness <= EAT_PREY_DISTANCE):
             self.score += 1
+            #Call score task in queue handler
             self.queue.put({"score": self.score})
             self.createNewPrey()
+        #Need to ensure we remove the tail when it doesn't eat prey or else it would extend
+        #    from just moving
         else:
             self.snakeCoordinates.pop(0)
 
+        #Call move task in queue handler
         self.queue.put({"move": self.snakeCoordinates.copy()})
+
+        #To consistently check if game over 
         self.isGameOver(NewSnakeCoordinates)
 
     def calculateNewCoordinates(self) -> tuple:
@@ -196,7 +209,7 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
-        move_basis = 10 #how much snake moves in one go
+        move_basis = 10 #how much snake moves in one step
         currentDirection = self.direction
 
         #We return a tuple that represents next positioning of snake
@@ -233,7 +246,9 @@ class Game():
     
         #If either is True, it's Game Over
         if selfBite or wallHit:
+            #update gameNotOver field
             self.gameNotOver = False
+            #call game over task in queue handler
             self.queue.put({"game_over":True})
         
     def createNewPrey(self) -> None:
@@ -250,32 +265,39 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
+        #Formula to find the maximum distance between snake and prey 
+        # to ensure new prey is entirely away from snake 
+        # (additional info on documentation)
         DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         while True:
-            prey_touch_snake = False
+            #Generate random x and y coordinates to choose where prey appears,
+            #  with THRESHOLD for coordinates to be away from walls.
             x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
             y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
+            #Looping all the tuples of coordinates in the snakeCoordinates list
+            #  following same algorithm in the move function
+            #  ensuring new prey doesn't touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
                 x_closeness = abs(x - snake_x)
                 y_closeness = abs(y - snake_y)
                 if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
-                    prey_touch_snake = True
-                    break
+                    break # choose x and y values again
             
-            if prey_touch_snake != True:
-                break
+            #break loop when finally chosen x and y values
+            break
 
+        #After loop choosing final x and y values to choose center coordinates of prey
         self.preyPosition = (x,y)
         
+        #Formula to find all preyCoordinates with constant PREY_ICON_WIDTH //2
         preyCoordinates = (
-            x - PREY_ICON_WIDTH // 2,
-            y - PREY_ICON_WIDTH // 2,
-            x + PREY_ICON_WIDTH // 2,
-            y + PREY_ICON_WIDTH // 2
+            x - PREY_ICON_WIDTH // 2, y - PREY_ICON_WIDTH // 2,
+            x + PREY_ICON_WIDTH // 2, y + PREY_ICON_WIDTH // 2
         )
 
+        #Call prey task in queue handler
         self.queue.put({"prey": preyCoordinates})
 
 
