@@ -270,11 +270,21 @@ class Game():
         # (additional info on documentation)
         DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
+        scoreTextXLocation = 60
+        scoreTextYLocation = 15
+
         while True:
             #Generate random x and y coordinates to choose where prey appears,
             #  with THRESHOLD for coordinates to be away from walls.
             x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
             y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+
+            x_loc = x > scoreTextXLocation or x < 200
+            y_loc = y > scoreTextYLocation or y < 25
+
+            while x_loc and y_loc:
+                x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+                y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
             #Looping all the tuples of coordinates in the snakeCoordinates list
             #  following same algorithm in the move function
