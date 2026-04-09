@@ -12,6 +12,6 @@ if __name__ == "__main__":
     time.sleep(1)  #to ensure server is up and running; 
                    #may be commented out or changed, so your code must work without it as well
 
-    numberOfClients = 2  #Change this value for a different number of clients
+    numberOfClients = 3  #Change this value for a different number of clients
     for count in range(1, numberOfClients+1):
         multiprocessing.Process(target=part2_client.main, name=f"Client{count}").start()

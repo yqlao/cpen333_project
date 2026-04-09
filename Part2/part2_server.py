@@ -1,5 +1,5 @@
 # Group#: A13
-# Student Names: 
+# Student Names: Renzon Gabriel, Yuqi Lao
 
 #Content of server.py; To complete/implement
 
@@ -19,20 +19,27 @@ class ChatServer:
     """
     # To implement 
     def __init__(self, window):
+        """Initializes the GUI, sets up the listening socket, and starts the acceptor thread."""
         # --- Initialize GUI ---
         self.window = window
-
         self.window.title("Chat Server")
         self.window.configure(background="#def2fe")
         self.window.geometry("350x450")
 
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         Label(self.window, text="Let's chit chat!").pack()
 
-        self.Text = Text(self.window, state=DISABLED) # Read-only
-        self.Text.pack(pady=5)
+        self.text_area = Text(self.window, state=DISABLED) # Read-only
+        self.text_area.pack(pady=5)
+        # Text styles
+        self.text_area.tag_config("system", foreground="#888888", font=("Helvetica", 9, "italic"))
+        self.text_area.tag_config("chat", foreground="#000000", font=("Helvetica", 10, "normal"))
+        self.text_area.tag_config("error", foreground="#d9534f", font=("Helvetica", 10, "bold"))
 
         input_frame = Frame(self.window, bg="#def2fe")
         input_frame.pack(pady=5, padx=10, fill=X)
+
         self.entry = Entry(input_frame, width=30)
         self.entry.pack(side=LEFT, padx=(0,5))
 
@@ -41,38 +48,51 @@ class ChatServer:
         self.PORT = 12345 # Base port number
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allow reuse of the address to avoid "Address already in use" errors
-        self.server_socket.bind((self.HOST, self.PORT))
-        self.server_socket.listen()
+        
+        try:
+            self.server_socket.bind((self.HOST, self.PORT))
+            self.server_socket.listen()
 
-        self.clients = [] # List to keep track of connected clients
+            self.log_activity("Server is online and waiting for clients...") # Deafult: "system" tag
+            print(f"[SERVER] Listening on {self.HOST}:{self.PORT}")
 
-        threading.Thread(target=self.accept_clients, daemon=True).start() # Acceptor thread to handle incoming client connections and avoid blocking the GUI
+            self.clients = [] # List to keep track of connected clients
+            threading.Thread(target=self.accept_clients, daemon=True).start() # Acceptor thread to handle incoming client connections and avoid blocking the GUI
+        except OSError as e:
+            print(f"[SERVER] Bind failed: {e}")
+            self.log_activity(f"Failed to start server.", "error")
+
                 
-    def accept_clients(self):
+    def accept_clients(self) -> None:
         """ Accept incoming client connections and start a new thread for each client."""
         while True:
-            conn, addr = self.server_socket.accept()
-            print(f"Connected by {addr}")
-            client_id = addr[1] # Grab their unique port to use as an ID
-            self.clients.append((conn, client_id)) # Store the connection and client ID
-            threading.Thread(target=self.receive_message, args=(conn, client_id), daemon=True).start() # Spawn a new thread for a new client connection
+            try:
+                conn, addr = self.server_socket.accept()
+                client_id = addr[1] # Grab their unique port to use as an ID
+                self.clients.append((conn, client_id)) # Store the connection and client ID
+                self.log_activity(f"Client {client_id} joined the chat.")
+                print(f"[SERVER] Connection established with {addr[0]}:{addr[1]}")
+                threading.Thread(target=self.receive_message, args=(conn, client_id), daemon=True).start() # Spawn a new thread for a new client connection
+            except OSError:
+                break # If the server socket is closed, break out of the loop to allow clean shutdown
                 
 
-    def receive_message(self, conn, client_id):
+    def receive_message(self, conn: socket.socket, client_id: int) -> None:
         """ Receive messages from a specific client and broadcast to others."""
         while True:
             try:
                 data = conn.recv(1024)
                 if not data:
-                    break
+                    break # Client gracefully disconnected
 
                 # Display message on server GUI
                 message = data.decode('utf-8')
                 gui_message = f"Client {client_id}: {message}"
-                self.Text.config(state=NORMAL)
-                self.Text.insert(END, gui_message + '\n')
-                self.Text.see(END)
-                self.Text.config(state=DISABLED)
+                self.log_activity(gui_message, "chat") # Uses the 'chat' tag!
+                # self.text_area.config(state=NORMAL)
+                # self.text_area.insert(END, gui_message + '\n')
+                # self.text_area.see(END)
+                # self.text_area.config(state=DISABLED)
 
                 # Broadcast the message to all other clients
                 for c_conn, c_id in self.clients:
@@ -87,11 +107,32 @@ class ChatServer:
                 break
         
         # --- Clean Up if a Client Disconnects ---
-        self.clients = [(c_conn, c_id) for c_conn, c_id in self.clients if c_id != client_id] # Remove the disconnected client from the list
-        conn.close() # close the connection
+        self.log_activity(f"Client {client_id} left the chat.")
+        print(f"[SERVER] Cleaning up socket for Client {client_id}")
+        self.clients = [(c, cid) for c, cid in self.clients if cid != client_id]
+        conn.close()
 
+    def log_activity(self, msg: str, tag: str = "system") -> None:
+        """Helper method to update the server's visual log."""
+        self.text_area.config(state=NORMAL)
+        self.text_area.insert(END, f"{msg}\n", tag)
+        self.text_area.see(END)
+        self.text_area.config(state=DISABLED)
 
-def main(): #Note that the main function is outside the ChatServer class
+    def on_closing(self) -> None:
+        """ Shuts down the server, disconnecting all clients and freeing the port."""
+        for c_conn, _ in self.clients:
+            try:
+                c_conn.close()
+            except Exception:
+                pass
+        try:
+            self.server_socket.close()
+        except Exception:
+            pass
+        self.window.destroy()
+
+def main()-> None: #Note that the main function is outside the ChatServer class
     window = Tk()
     ChatServer(window)
     window.mainloop()
