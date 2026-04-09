@@ -10,6 +10,8 @@ import threading
 import queue
 import random
 import time
+
+#PyQt5 
 import sys
 
 from PyQt5.QtWidgets import (
@@ -19,15 +21,109 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPen, QBrush
 from PyQt5.QtCore import Qt, QTimer, QLineF, QRectF, QObject, QEvent
 
+# ----- NEW GUI CLASS TO ADJUST FOR PYQT5
+class Gui(QMainWindow):
+    """
+        This updated class takes care of the game's graphic user interface (gui)
+        creation and termination with use of PyQt5 library 
+        that takes the QMainWindow class for window management.
+    """
+    def __init__(self):
+        """        
+            The initializer instantiates the main window and 
+            creates the starting icons for the snake and the prey,
+            and displays the initial gamer score.
+        """
+        super().__init__()
+        self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
-# ── Key constants ─────────────────────────────────────────────────────────────
-KEY_MAP = {
-    Qt.Key_Left:  "Left",
-    Qt.Key_Right: "Right",
-    Qt.Key_Up:    "Up",
-    Qt.Key_Down:  "Down",
-}
+        #Background View
+        self.bg = QGraphicsScene(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.bg.setBackgroundBrush(QBrush(Qt.black))
+        self.bgview = QGraphicsView(self.bg, self)
+        self.bgview.setGeometry(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.bgview.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.bgview.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
+        #To install event filter for key access
+        self._keyFilter = KeyFilter(self)
+        self.bgview.installEventFilter(self._keyFilter)
+
+        #Initial score Display
+        self.scoreLabel = QLabel("Your Score: 0", self)
+
+        #Initial prey display
+        self.preyIcon = self.bg.addRect(
+            QRectF(0, 0, PREY_ICON_WIDTH, PREY_ICON_WIDTH),
+            QPen(Qt.white),
+            QBrush(Qt.white)
+        )
+
+        #Initial snake coordinates list
+        self._snakeSegments = []
+
+    # ── Fallback: also handle on the window itself ────────────────────────────
+    def keyPressEvent(self, event):
+        """
+            This method is used at the end to display a
+            game over button.
+        """
+        direction = KEY_MAP.get(event.key())
+        if direction:
+            game.whenAnArrowKeyIsPressed(direction)
+
+    #------For queue handler method calls---------
+    #for move task 
+    def updateSnake(self, coordinates):
+        """
+            This method is used for the move task on the queue handler
+            to update the snake.
+        """
+        pen = QPen(Qt.white, SNAKE_ICON_WIDTH)
+
+        needed = max(len(coordinates) - 1, 0)
+
+        while len(self._snakeSegments) < needed:
+            item = QGraphicsLineItem()
+            item.setPen(pen)
+            self.bg.addItem(item)
+            self._snakeSegments.append(item)
+
+        while len(self._snakeSegments) > needed:
+            item = self._snakeSegments.pop()
+            self.bg.removeItem(item)
+
+        for i, item in enumerate(self._snakeSegments):
+            x1, y1 = coordinates[i]
+            x2, y2 = coordinates[i + 1]
+            item.setLine(QLineF(x1, y1, x2, y2))
+            item.setPen(pen)
+
+    def updatePrey(self, coords):
+        """
+            This method is used for the move task on the queue handler
+            to update the snake.
+        """
+        x1, y1, x2, y2 = coords
+        self.preyIcon.setRect(QRectF(x1, y1, x2 - x1, y2 - y1))
+
+    def updateScore(self, score):
+        """
+            This method is used for the score task on the queue handler
+            to update the score.
+        """
+        self.scoreLabel.setText(f"Your Score: {score}")
+
+    def gameOver(self):
+        """
+            This method is used at the end to display a
+            game over button.
+        """
+        btn = QPushButton("Game Over!")
+        btn.setFixedSize(200, 100)
+        btn.clicked.connect(self.close) #to close window when clicked
+        proxy = self.bg.addWidget(btn)
+        proxy.setPos(200, 100) 
 
 class KeyFilter(QObject):
     """
@@ -42,82 +138,11 @@ class KeyFilter(QObject):
                 game.whenAnArrowKeyIsPressed(direction)
                 return True          # swallow the event
         return super().eventFilter(obj, event)
-
-class Gui(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)
-
-        # ── Scene & View ──────────────────────────────────────────────────────
-        self.scene = QGraphicsScene(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
-        self.scene.setBackgroundBrush(QBrush(Qt.black))
-
-        self.view = QGraphicsView(self.scene, self)
-        self.view.setGeometry(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
-        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
-        # ── Mac fix: install key filter on the view ───────────────────────────
-        self._keyFilter = KeyFilter(self)
-        self.view.installEventFilter(self._keyFilter)
-
-        # ── Score label ───────────────────────────────────────────────────────
-        self.scoreLabel = QLabel("Your Score: 0", self)
-
-        # ── Prey icon ─────────────────────────────────────────────────────────
-        self.preyIcon = self.scene.addRect(
-            QRectF(0, 0, PREY_ICON_WIDTH, PREY_ICON_WIDTH),
-            QPen(Qt.white),
-            QBrush(Qt.white)
-        )
-
-        # ── Snake segments ────────────────────────────────────────────────────
-        self._snakeSegments = []
-
-    # ── Fallback: also handle on the window itself ────────────────────────────
-    def keyPressEvent(self, event):
-        direction = KEY_MAP.get(event.key())
-        if direction:
-            game.whenAnArrowKeyIsPressed(direction)
-
-    # ── GUI update methods ────────────────────────────────────────────────────
-    def updateSnake(self, coordinates):
-        pen = QPen(Qt.white, SNAKE_ICON_WIDTH)
-
-        needed = max(len(coordinates) - 1, 0)
-
-        while len(self._snakeSegments) < needed:
-            item = QGraphicsLineItem()
-            item.setPen(pen)
-            self.scene.addItem(item)
-            self._snakeSegments.append(item)
-
-        while len(self._snakeSegments) > needed:
-            item = self._snakeSegments.pop()
-            self.scene.removeItem(item)
-
-        for i, item in enumerate(self._snakeSegments):
-            x1, y1 = coordinates[i]
-            x2, y2 = coordinates[i + 1]
-            item.setLine(QLineF(x1, y1, x2, y2))
-            item.setPen(pen)
-
-    def updatePrey(self, coords):
-        x1, y1, x2, y2 = coords
-        self.preyIcon.setRect(QRectF(x1, y1, x2 - x1, y2 - y1))
-
-    def updateScore(self, score):
-        self.scoreLabel.setText(f"Your Score: {score}")
-
-    def gameOver(self):
-        btn = QPushButton("Game Over!")
-        btn.setFixedSize(160, 60)
-        btn.clicked.connect(self.close)
-        proxy = self.scene.addWidget(btn)
-        proxy.setPos(170, 120)
-
-
+    
 class QueueHandler:
+    """
+        This class implements the queue handler for the game.
+    """
     def __init__(self):
         self.queue = gameQueue
         self.gui = gui
@@ -126,6 +151,17 @@ class QueueHandler:
         self.timer.start(16)
 
     def queueHandler(self):
+        '''
+            This method handles the queue by constantly retrieving
+            tasks from it and accordingly taking the corresponding
+            action.
+            A task could be: game_over, move, prey, score.
+            Each item in the queue is a dictionary whose key is
+            the task type (for example, "move") and its value is
+            the corresponding task value.
+            If the queue.empty exception happens, it schedules 
+            to call itself after a short delay.
+        '''
         try:
             while True:
                 task = self.queue.get_nowait()
@@ -139,7 +175,7 @@ class QueueHandler:
                     gui.updateScore(task["score"])
                 self.queue.task_done()
         except queue.Empty:
-            pass
+            gui.root.after(100, self.queueHandler)
 
 class Game():
     '''
@@ -198,7 +234,7 @@ class Game():
             return
         self.direction = e
 
-    def move(self) -> None:
+   def move(self) -> None:
         """ 
             This method implements what is needed to be done
             for the movement of the snake.
@@ -220,11 +256,11 @@ class Game():
         #Formula to find the maximum distance between snake and prey 
         # to ensure when snake touches prey it eats it
         # (additional info on documentation)
-        EAT_PREY_DISTANCE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+        EAT_PREY_DISTANCE: int = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         #Finding distance between prey and snake of x and y coordinates
-        x_closeness = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
-        y_closeness = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
+        x_closeness: int = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
+        y_closeness: int = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
         
         #If both x and y distance fall under the maximum distance, add one point to the score
         #   and add new prey 
@@ -271,7 +307,6 @@ class Game():
             return (lastX, lastY + move_basis)
         #in tkinter, y increases downward
 
-
     def isGameOver(self, snakeCoordinates) -> None:
         """
             This method checks if the game is over by 
@@ -286,10 +321,10 @@ class Game():
         #We use boolean to check whether the snake has:
 
         # --- Passed any wall -----
-        wallHit = (x <= 0 or x >= WINDOW_WIDTH or y <= 0 or y >= WINDOW_HEIGHT)
+        wallHit: bool = (x <= 0 or x >= WINDOW_WIDTH or y <= 0 or y >= WINDOW_HEIGHT)
 
         # --- Bit itself ----------
-        selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
+        selfBite: bool = snakeCoordinates in self.snakeCoordinates[:-1]
     
         #If either is True, it's Game Over
         if selfBite or wallHit:
@@ -315,7 +350,7 @@ class Game():
         #Formula to find the maximum distance between snake and prey 
         # to ensure new prey is entirely away from snake 
         # (additional info on documentation)
-        DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+        DISTANCE_FROM_SNAKE: int = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         scoreTextXLocation = 60
         scoreTextYLocation = 15
@@ -323,8 +358,8 @@ class Game():
         while True:
             #Generate random x and y coordinates to choose where prey appears,
             #  with THRESHOLD for coordinates to be away from walls.
-            x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
-            y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+            y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
             #x_loc = x > scoreTextXLocation or x < 200
             #y_loc = y > scoreTextYLocation or y < 25
@@ -337,8 +372,8 @@ class Game():
             #  following same algorithm in the move function
             #  ensuring new prey doesn't touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
-                x_closeness = abs(x - snake_x)
-                y_closeness = abs(y - snake_y)
+                x_closeness: int = abs(x - snake_x)
+                y_closeness: int = abs(y - snake_y)
                 if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
                     break # choose x and y values again
             
@@ -346,10 +381,10 @@ class Game():
             break
 
         #After loop choosing final x and y values to choose center coordinates of prey
-        self.preyPosition = (x,y)
+        self.preyPosition: tuple = (x,y)
         
         #Formula to find all preyCoordinates with constant PREY_ICON_WIDTH //2
-        preyCoordinates = (
+        preyCoordinates: tuple = (
             x - PREY_ICON_WIDTH // 2, y - PREY_ICON_WIDTH // 2,
             x + PREY_ICON_WIDTH // 2, y + PREY_ICON_WIDTH // 2
         )
@@ -358,12 +393,23 @@ class Game():
         self.queue.put({"prey": preyCoordinates})
 
 if __name__ == "__main__":
-    WINDOW_WIDTH      = 500
-    WINDOW_HEIGHT     = 300
-    SNAKE_ICON_WIDTH  = 10
-    PREY_ICON_WIDTH   = 7
-    BACKGROUND_COLOUR = "black"
-    ICON_COLOUR       = "white"
+    #some constants for our GUI
+    WINDOW_WIDTH = 500           
+    WINDOW_HEIGHT = 300
+    SNAKE_ICON_WIDTH = 10
+    #add the specified constant PREY_ICON_WIDTH here  
+    PREY_ICON_WIDTH = 7
+
+    BACKGROUND_COLOUR = "black"   #you may change this colour if you wish
+    ICON_COLOUR = "white"        #you may change this colour if you wish
+
+    # Dictionary of arrows for direction of snake
+    KEY_MAP: dict = {
+        Qt.Key_Left:  "Left",
+        Qt.Key_Right: "Right",
+        Qt.Key_Up:    "Up",
+        Qt.Key_Down:  "Down",
+    }
 
     app = QApplication(sys.argv)
 
