@@ -173,11 +173,11 @@ class Game():
         #Formula to find the maximum distance between snake and prey 
         # to ensure when snake touches prey it eats it
         # (additional info on documentation)
-        EAT_PREY_DISTANCE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+        EAT_PREY_DISTANCE: int = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         #Finding distance between prey and snake of x and y coordinates
-        x_closeness = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
-        y_closeness = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
+        x_closeness: int = abs(NewSnakeCoordinates[0] - self.preyPosition[0])
+        y_closeness: int = abs(NewSnakeCoordinates[1] - self.preyPosition[1])
         
         #If both x and y distance fall under the maximum distance, add one point to the score
         #   and add new prey 
@@ -209,7 +209,7 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
-        move_basis = 10 #how much snake moves in one step
+        move_basis: int = 10 #how much snake moves in one step
         currentDirection = self.direction
 
         #We return a tuple that represents next positioning of snake
@@ -239,10 +239,10 @@ class Game():
         #We use boolean to check whether the snake has:
 
         # --- Passed any wall -----
-        wallHit = (x <= 0 or x >= WINDOW_WIDTH or y <= 0 or y >= WINDOW_HEIGHT)
+        wallHit: bool = (x <= 0 or x >= WINDOW_WIDTH or y <= 0 or y >= WINDOW_HEIGHT)
 
         # --- Bit itself ----------
-        selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
+        selfBite: bool = snakeCoordinates in self.snakeCoordinates[:-1]
     
         #If either is True, it's Game Over
         if selfBite or wallHit:
@@ -268,7 +268,7 @@ class Game():
         #Formula to find the maximum distance between snake and prey 
         # to ensure new prey is entirely away from snake 
         # (additional info on documentation)
-        DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+        DISTANCE_FROM_SNAKE: float = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         scoreTextXLocation = 60
         scoreTextYLocation = 15
@@ -276,8 +276,8 @@ class Game():
         while True:
             #Generate random x and y coordinates to choose where prey appears,
             #  with THRESHOLD for coordinates to be away from walls.
-            x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
-            y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+            y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
             #x_loc = x > scoreTextXLocation or x < 200
             #y_loc = y > scoreTextYLocation or y < 25
@@ -290,8 +290,8 @@ class Game():
             #  following same algorithm in the move function
             #  ensuring new prey doesn't touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
-                x_closeness = abs(x - snake_x)
-                y_closeness = abs(y - snake_y)
+                x_closeness: int = abs(x - snake_x)
+                y_closeness: int = abs(y - snake_y)
                 if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
                     break # choose x and y values again
             
@@ -299,10 +299,10 @@ class Game():
             break
 
         #After loop choosing final x and y values to choose center coordinates of prey
-        self.preyPosition = (x,y)
+        self.preyPosition: tuple = (x,y)
         
         #Formula to find all preyCoordinates with constant PREY_ICON_WIDTH //2
-        preyCoordinates = (
+        preyCoordinates: tuple = (
             x - PREY_ICON_WIDTH // 2, y - PREY_ICON_WIDTH // 2,
             x + PREY_ICON_WIDTH // 2, y + PREY_ICON_WIDTH // 2
         )
