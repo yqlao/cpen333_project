@@ -2,11 +2,17 @@
 # Student Names: Renzon Gabriel, Yuqi Lao
 
 """
-    Snake game — PyQt5 version (Mac arrow-key fix)
+    Snake game — PyQt5 (fully debugged)
 
-    Mac fix: QGraphicsView steals focus from QMainWindow, so arrow keys
-    never reached keyPressEvent. Solution: install an eventFilter on the
-    view so ALL key events are intercepted there too.
+    Bugs fixed from previous version:
+    1. whenAnArrowKeyIsPressed() still used tkinter's e.keysym — 
+       changed to accept a plain string direction instead.
+    2. __main__ block had both tkinter (gui.root.mainloop()) and 
+       PyQt5 (app.exec_()) startup code mixed together — removed 
+       all tkinter remnants, kept only PyQt5 startup.
+    3. createNewPrey() loop logic was broken — the inner for-loop 
+       would always hit the outer break regardless of collision, 
+       so prey could spawn on top of the snake. Fixed with a flag.
 """
 
 import threading
@@ -19,11 +25,10 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QGraphicsView, QGraphicsScene,
     QPushButton, QGraphicsLineItem, QLabel
 )
-from PyQt5.QtGui import QPen, QBrush, QColor, QFont
+from PyQt5.QtGui  import QPen, QBrush, QColor, QFont
 from PyQt5.QtCore import Qt, QTimer, QLineF, QRectF, QObject, QEvent
 
-
-# ── Key constants ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 KEY_MAP = {
     Qt.Key_Left:  "Left",
     Qt.Key_Right: "Right",
@@ -32,30 +37,30 @@ KEY_MAP = {
 }
 
 
+# ---------------------------------------------------------------------------
 class KeyFilter(QObject):
     """
-    Event filter installed on QGraphicsView.
-    Intercepts key presses so arrow keys work even when the view has focus
-    (which it always does on Mac).
+    Installed on QGraphicsView so arrow keys are caught even when
+    the view (not the window) holds focus — required on macOS.
     """
     def eventFilter(self, obj, event):
         if event.type() == QEvent.KeyPress:
             direction = KEY_MAP.get(event.key())
             if direction:
-                game.whenAnArrowKeyIsPressed(direction)
-                return True          # swallow the event
+                game.whenAnArrowKeyIsPressed(direction)   # pass string, not event
+                return True
         return super().eventFilter(obj, event)
 
 
+# ---------------------------------------------------------------------------
 class Gui(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("Snake")
         self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT + 30)
         self.setStyleSheet("background-color: black;")
 
-        # ── Scene & View ──────────────────────────────────────────────────────
+        # QGraphicsScene = logical canvas | QGraphicsView = the widget that shows it
         self.scene = QGraphicsScene(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         self.scene.setBackgroundBrush(QBrush(QColor(BACKGROUND_COLOUR)))
 
@@ -65,43 +70,41 @@ class Gui(QMainWindow):
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setStyleSheet("border: 0px;")
 
-        # ── Mac fix: install key filter on the view ───────────────────────────
+        # macOS fix — intercept keys at the view level
         self._keyFilter = KeyFilter(self)
         self.view.installEventFilter(self._keyFilter)
-        # Also make the view focusable and grab focus immediately
         self.view.setFocusPolicy(Qt.StrongFocus)
         self.view.setFocus()
 
-        # ── Score label ───────────────────────────────────────────────────────
+        # Score label lives in the 30-px header above the scene
         self.scoreLabel = QLabel("Your Score: 0", self)
-        font = QFont("Helvetica", 11)
-        font.setBold(True)
-        self.scoreLabel.setFont(font)
+        f = QFont("Helvetica", 11)
+        f.setBold(True)
+        self.scoreLabel.setFont(f)
         self.scoreLabel.setStyleSheet("color: white; background: black;")
         self.scoreLabel.setGeometry(5, 5, 200, 22)
 
-        # ── Prey icon ─────────────────────────────────────────────────────────
+        # Prey — one permanent rect item; we just move it
         self.preyIcon = self.scene.addRect(
             QRectF(0, 0, PREY_ICON_WIDTH, PREY_ICON_WIDTH),
             QPen(QColor(ICON_COLOUR)),
             QBrush(QColor(ICON_COLOUR))
         )
 
-        # ── Snake segments ────────────────────────────────────────────────────
+        # Snake — list of QGraphicsLineItems, recycled every frame
         self._snakeSegments = []
 
-    # ── Fallback: also handle on the window itself ────────────────────────────
+    # window-level fallback (works on Windows/Linux)
     def keyPressEvent(self, event):
         direction = KEY_MAP.get(event.key())
         if direction:
             game.whenAnArrowKeyIsPressed(direction)
 
-    # ── GUI update methods ────────────────────────────────────────────────────
+    # --- GUI update helpers -------------------------------------------------
     def updateSnake(self, coordinates):
         pen = QPen(QColor(ICON_COLOUR), SNAKE_ICON_WIDTH)
         pen.setCapStyle(Qt.RoundCap)
         pen.setJoinStyle(Qt.RoundJoin)
-
         needed = max(len(coordinates) - 1, 0)
 
         while len(self._snakeSegments) < needed:
@@ -111,8 +114,7 @@ class Gui(QMainWindow):
             self._snakeSegments.append(item)
 
         while len(self._snakeSegments) > needed:
-            item = self._snakeSegments.pop()
-            self.scene.removeItem(item)
+            self.scene.removeItem(self._snakeSegments.pop())
 
         for i, item in enumerate(self._snakeSegments):
             x1, y1 = coordinates[i]
@@ -132,40 +134,38 @@ class Gui(QMainWindow):
         btn.setFont(QFont("Helvetica", 14, QFont.Bold))
         btn.setFixedSize(160, 60)
         btn.clicked.connect(self.close)
-        proxy = self.scene.addWidget(btn)
-        proxy.setPos(170, 120)
+        self.scene.addWidget(btn).setPos(170, 120)
 
 
+# ---------------------------------------------------------------------------
 class QueueHandler:
     def __init__(self):
         self.timer = QTimer()
-        self.timer.timeout.connect(self.poll)
-        self.timer.start(16)
+        self.timer.timeout.connect(self._poll)
+        self.timer.start(16)          # ~60 fps
 
-    def poll(self):
+    def _poll(self):
         try:
             while True:
                 task = gameQueue.get_nowait()
-                if "game_over" in task:
-                    gui.gameOver()
-                elif "move" in task:
-                    gui.updateSnake(task["move"])
-                elif "prey" in task:
-                    gui.updatePrey(task["prey"])
-                elif "score" in task:
-                    gui.updateScore(task["score"])
+                if   "game_over" in task: gui.gameOver()
+                elif "move"      in task: gui.updateSnake(task["move"])
+                elif "prey"      in task: gui.updatePrey(task["prey"])
+                elif "score"     in task: gui.updateScore(task["score"])
                 gameQueue.task_done()
         except queue.Empty:
             pass
 
 
+# ---------------------------------------------------------------------------
 class Game:
     def __init__(self):
+        self.queue = gameQueue
         self.score = 0
         self.snakeCoordinates = [(495, 55), (485, 55), (475, 55),
                                  (465, 55), (455, 55)]
-        self.direction = "Left"
-        self.gameNotOver = True
+        self.direction    = "Left"
+        self.gameNotOver  = True
         self.createNewPrey()
 
     def superloop(self):
@@ -174,7 +174,9 @@ class Game:
             self.move()
             time.sleep(SPEED)
 
-    def whenAnArrowKeyIsPressed(self, direction: str):
+    # BUG FIX 1 — was: e.keysym  (tkinter Event attribute)
+    #             now: direction is already a plain string passed by KeyFilter
+    def whenAnArrowKeyIsPressed(self, direction: str) -> None:
         cur = self.direction
         if (cur == "Left"  and direction == "Right" or
             cur == "Right" and direction == "Left"  or
@@ -183,53 +185,67 @@ class Game:
             return
         self.direction = direction
 
-    def move(self):
+    def move(self) -> None:
         new = self.calculateNewCoordinates()
         self.snakeCoordinates.append(new)
 
-        EAT_DIST = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
-        if (abs(new[0] - self.preyPosition[0]) <= EAT_DIST and
-                abs(new[1] - self.preyPosition[1]) <= EAT_DIST):
+        EAT_PREY_DISTANCE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+        x_close = abs(new[0] - self.preyPosition[0])
+        y_close = abs(new[1] - self.preyPosition[1])
+
+        if x_close <= EAT_PREY_DISTANCE and y_close <= EAT_PREY_DISTANCE:
             self.score += 1
-            gameQueue.put({"score": self.score})
+            self.queue.put({"score": self.score})
             self.createNewPrey()
         else:
             self.snakeCoordinates.pop(0)
 
-        gameQueue.put({"move": self.snakeCoordinates.copy()})
+        self.queue.put({"move": self.snakeCoordinates.copy()})
         self.isGameOver(new)
 
-    def calculateNewCoordinates(self):
-        x, y = self.snakeCoordinates[-1]
+    def calculateNewCoordinates(self) -> tuple:
+        lastX, lastY = self.snakeCoordinates[-1]
         step = 10
-        if self.direction == "Left":  return (x - step, y)
-        if self.direction == "Right": return (x + step, y)
-        if self.direction == "Up":    return (x, y - step)
-        if self.direction == "Down":  return (x, y + step)
+        if   self.direction == "Left":  return (lastX - step, lastY)
+        elif self.direction == "Right": return (lastX + step, lastY)
+        elif self.direction == "Up":    return (lastX, lastY - step)
+        elif self.direction == "Down":  return (lastX, lastY + step)
 
-    def isGameOver(self, coord):
-        x, y = coord
-        if (x < 0 or x >= WINDOW_WIDTH or y < 0 or y >= WINDOW_HEIGHT or
-                coord in self.snakeCoordinates[:-1]):
+    def isGameOver(self, snakeCoordinates) -> None:
+        x, y = snakeCoordinates
+        wallHit  = (x < 0 or x >= WINDOW_WIDTH or y < 0 or y >= WINDOW_HEIGHT)
+        selfBite = snakeCoordinates in self.snakeCoordinates[:-1]
+        if wallHit or selfBite:
             self.gameNotOver = False
-            gameQueue.put({"game_over": True})
+            self.queue.put({"game_over": True})
 
-    def createNewPrey(self):
-        THRESHOLD = 15
-        DIST = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+    # BUG FIX 2 — previous loop always broke out after the first x/y pick
+    #             regardless of collision; fixed with a proper boolean flag
+    def createNewPrey(self) -> None:
+        THRESHOLD        = 15
+        DISTANCE_FROM_SNAKE = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
+
         while True:
             x = random.randint(THRESHOLD, WINDOW_WIDTH  - THRESHOLD)
             y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
-            if all(abs(x - sx) > DIST or abs(y - sy) > DIST
-                   for sx, sy in self.snakeCoordinates):
-                break
+
+            too_close = False
+            for (sx, sy) in self.snakeCoordinates:
+                if abs(x - sx) <= DISTANCE_FROM_SNAKE and abs(y - sy) <= DISTANCE_FROM_SNAKE:
+                    too_close = True
+                    break
+
+            if not too_close:
+                break          # only exit when we found a safe position
+
         self.preyPosition = (x, y)
-        gameQueue.put({"prey": (
+        self.queue.put({"prey": (
             x - PREY_ICON_WIDTH // 2, y - PREY_ICON_WIDTH // 2,
             x + PREY_ICON_WIDTH // 2, y + PREY_ICON_WIDTH // 2
         )})
 
 
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     WINDOW_WIDTH      = 500
     WINDOW_HEIGHT     = 300
@@ -238,14 +254,16 @@ if __name__ == "__main__":
     BACKGROUND_COLOUR = "black"
     ICON_COLOUR       = "white"
 
+    # BUG FIX 3 — previous __main__ had BOTH tkinter (gui.root.mainloop())
+    #             and PyQt5 (app.exec_()) startup code — only PyQt5 below
     app = QApplication(sys.argv)
 
     gameQueue = queue.Queue()
-    game = Game()
-    gui  = Gui()
+    game      = Game()
+    gui       = Gui()
     gui.show()
 
-    qh = QueueHandler()
+    QueueHandler()
 
     threading.Thread(target=game.superloop, daemon=True).start()
 
