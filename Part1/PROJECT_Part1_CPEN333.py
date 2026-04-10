@@ -265,13 +265,14 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
+        #constants from GUI class of coordinates for score text
+        scoreTextXLocation: int = 60
+        scoreTextYLocation: int = 15
+
         #Formula to find the maximum distance between snake and prey 
         # to ensure new prey is entirely away from snake 
         # (additional info on documentation)
-        DISTANCE_FROM_SNAKE: float = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
-
-        scoreTextXLocation = 60
-        scoreTextYLocation = 15
+        DISTANCE_FROM_SNAKE: int = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
 
         while True:
             #Generate random x and y coordinates to choose where prey appears,
@@ -279,16 +280,21 @@ class Game():
             x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
             y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
-            #x_loc = x > scoreTextXLocation or x < 200
-            #y_loc = y > scoreTextYLocation or y < 25
+            #Condition 1 :
+            #     If x and y coordinates lie beneath the score text
+            #     estimated to be between these location values
+            x_loc: bool = x > scoreTextXLocation and x < 200
+            y_loc: bool = y > scoreTextYLocation and y < 26
 
-            #while x_loc and y_loc:
-                #x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
-                #y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            #Generate new coordinates until we find coordinates out of score text
+            while x_loc and y_loc:
+                x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+                y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
-            #Looping all the tuples of coordinates in the snakeCoordinates list
-            #  following same algorithm in the move function
-            #  ensuring new prey doesn't touch snake
+            #Condition 2 :
+            #     Looping all the tuples of coordinates in the snakeCoordinates list
+            #     following same algorithm in the move function
+            #     ensuring new prey doesn't touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
                 x_closeness: int = abs(x - snake_x)
                 y_closeness: int = abs(y - snake_y)
