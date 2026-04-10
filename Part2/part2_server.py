@@ -88,11 +88,7 @@ class ChatServer:
                 # Display message on server GUI
                 message = data.decode('utf-8')
                 gui_message = f"Client {client_id}: {message}"
-                self.log_activity(gui_message, "chat") # Uses the 'chat' tag!
-                # self.text_area.config(state=NORMAL)
-                # self.text_area.insert(END, gui_message + '\n')
-                # self.text_area.see(END)
-                # self.text_area.config(state=DISABLED)
+                self.log_activity(gui_message, "chat") # Uses the 'chat' tag
 
                 # Broadcast the message to all other clients
                 for c_conn, c_id in self.clients:
@@ -103,7 +99,7 @@ class ChatServer:
                         continue
 
             except:
-                print(f"[Server] Connection with client {client_id} lost.")
+                print(f"[SERVER] Connection with client {client_id} lost.")
                 break
         
         # --- Clean Up if a Client Disconnects ---
@@ -123,11 +119,11 @@ class ChatServer:
         """ Shuts down the server, disconnecting all clients and freeing the port."""
         for c_conn, _ in self.clients:
             try:
-                c_conn.close()
+                c_conn.close() # Attempt to close all client connections gracefully
             except Exception:
                 pass
         try:
-            self.server_socket.close()
+            self.server_socket.close() # Close the server socket to free the port
         except Exception:
             pass
         self.window.destroy()
