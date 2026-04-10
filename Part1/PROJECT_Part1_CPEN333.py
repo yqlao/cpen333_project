@@ -209,7 +209,7 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
-        move_basis: int = 10 #how much snake moves in one step
+        move_basis: int = SNAKE_ICON_WIDTH #how much snake moves in one step
         currentDirection = self.direction
 
         #We return a tuple that represents next positioning of snake
@@ -239,7 +239,8 @@ class Game():
         #We use boolean to check whether the snake has:
 
         # --- Passed any wall -----
-        wallHit: bool = (x <= 0 or x >= WINDOW_WIDTH or y <= 0 or y >= WINDOW_HEIGHT)
+        radius: int = SNAKE_ICON_WIDTH // 2 # distance from center of snake to its edge
+        wallHit: bool = (x < radius or x > WINDOW_WIDTH - radius or y < radius or y > WINDOW_HEIGHT - radius)
 
         # --- Bit itself ----------
         selfBite: bool = snakeCoordinates in self.snakeCoordinates[:-1]
