@@ -28,7 +28,7 @@ class ChatServer:
 
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        Label(self.window, text="Let's chit chat!").pack()
+        Label(self.window, text="Let's chit chat!", bg="#def2fe").pack()
 
         self.text_area = Text(self.window, state=DISABLED) # Read-only
         self.text_area.pack(pady=5)
@@ -68,17 +68,28 @@ class ChatServer:
         while True:
             try:
                 conn, addr = self.server_socket.accept()
-                client_id = addr[1] # Grab their unique port to use as an ID
-                self.clients.append((conn, client_id)) # Store the connection and client ID
-                self.log_activity(f"Client {client_id} joined the chat.")
+                client_port = addr[1] # Grab their unique port number
+                # self.clients.append((conn, client_port)) # Store the connection and client ID
+                # self.log_activity(f"Client at port {client_port} joined the chat.")
                 print(f"[SERVER] Connection established with {addr[0]}:{addr[1]}")
-                threading.Thread(target=self.receive_message, args=(conn, client_id), daemon=True).start() # Spawn a new thread for a new client connection
+                threading.Thread(target=self.receive_message, args=(conn, client_port), daemon=True).start() # Spawn a new thread for a new client connection
             except OSError:
                 break # If the server socket is closed, break out of the loop to allow clean shutdown
                 
 
     def receive_message(self, conn: socket.socket, client_id: int) -> None:
         """ Receive messages from a specific client and broadcast to others."""
+        # Handshake: get client ID
+        initial_data = conn.recv(1024)
+        if not initial_data:
+            conn.close()
+            return
+        client_id: str = initial_data.decode('utf-8')
+
+        # Store the client connection and ID
+        self.clients.append((conn, client_id))
+        self.log_activity(f"{client_id} joined the chat.") # Display join message on server GUI
+
         while True:
             try:
                 data = conn.recv(1024)
@@ -87,7 +98,7 @@ class ChatServer:
 
                 # Display message on server GUI
                 message = data.decode('utf-8')
-                gui_message = f"Client {client_id}: {message}"
+                gui_message = f"{client_id}: {message}"
                 self.log_activity(gui_message, "chat") # Uses the 'chat' tag
 
                 # Broadcast the message to all other clients
@@ -99,13 +110,13 @@ class ChatServer:
                         continue
 
             except:
-                print(f"[SERVER] Connection with client {client_id} lost.")
+                print(f"[SERVER] Connection with {client_id} lost.")
                 break
         
         # --- Clean Up if a Client Disconnects ---
-        self.log_activity(f"Client {client_id} left the chat.")
-        print(f"[SERVER] Cleaning up socket for Client {client_id}")
-        self.clients = [(c, cid) for c, cid in self.clients if cid != client_id]
+        self.log_activity(f"{client_id} left the chat.")
+        print(f"[SERVER] Cleaning up socket for {client_id}")
+        self.clients = [(c, cid) for c, cid in self.clients if cid != client_id] # Remove the disconnected client from the list
         conn.close()
 
     def log_activity(self, msg: str, tag: str = "system") -> None:

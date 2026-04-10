@@ -27,7 +27,8 @@ class ChatClient:
         # Intercept the window closing event to shut down sockets cleanly
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        Label(self.window, text="Let's chit chat!").pack()
+        Label(self.window, text="Let's chit chat!", bg="#def2fe").pack()
+        Label(self.window, text="Chat history:", bg="#def2fe", font=("Helvetica", 10, "normal")).pack(anchor="w", padx=10) # chat history label
 
         self.text_area = Text(self.window, state=DISABLED) # Read-only
         self.text_area.pack(pady=5)
@@ -37,9 +38,9 @@ class ChatClient:
 
         self.entry = Entry(input_frame, width=30)
         self.entry.pack(side=LEFT, padx=(0,5))
+        self.entry.bind("<Return>", lambda event: self.send_message()) # Allow sending message by presssing Enter key
 
         Button(input_frame, text="Send", command=self.send_message).pack(side=LEFT)
-        Button(self.window, text="Exit", command=self.on_closing).pack(anchor="e", padx=10, pady=10)
 
         # --- Initialize Socket Connection ---
         self.HOST = '127.0.0.1'
@@ -64,10 +65,16 @@ class ChatClient:
     def receive_message(self) -> None:
         while True:
             try:
-                message = self.client_socket.recv(1024).decode('utf-8')
-                if message:
+                raw_message = self.client_socket.recv(1024).decode('utf-8')
+                prefix_to_check = f"{self.client_id}:"
+                if raw_message.startswith(prefix_to_check):
+                    final_message = f"(You)    {raw_message}"
+                else:
+                    final_message = f"(Others) {raw_message}"
+
+                if final_message:
                     self.text_area.config(state=NORMAL) # Enable editing to insert the received message
-                    self.text_area.insert(END, message + '\n')
+                    self.text_area.insert(END, final_message + '\n')
                     self.text_area.see(END) # Auto-scroll
                     self.text_area.config(state=DISABLED) # Disable editing again
             except:
@@ -80,7 +87,14 @@ class ChatClient:
         try:
             self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((self.HOST, self.PORT))
-            print("[CLIENT] Connected to server successfully.")
+
+            self.client_port = self.client_socket.getsockname()[1] # Get the client's unique port number
+            self.client_id = current_process().name.replace("-", "").replace("Client", "Client ").strip() # Derive client ID from process name for display purposes
+            print(f"[CLIENT] {self.client_id} connected to server successfully.")
+            
+            self.client_socket.sendall(self.client_id.encode('utf-8')) # Handshake: send cient ID to the server
+            self.window.title(f"{self.client_id} @port #{self.client_port}") # Update the window title to include the client ID and port number
+
             # Spawn listening thread only after successful connection
             threading.Thread(target=self.receive_message, daemon=True).start()
         except OSError:
