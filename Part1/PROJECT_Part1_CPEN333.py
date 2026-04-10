@@ -278,36 +278,38 @@ class Game():
         while True:
             #Generate random x and y coordinates to choose where prey appears,
             #  with THRESHOLD for coordinates to be away from walls.
-            x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
-            y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD) # x coordinate of center of prey
+            y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD) # y coordinate of center of prey
 
             #Condition 1 :
-            #     If x and y coordinates lie beneath the score text
-            #     estimated to be between these location values
-            x_loc: bool = x > scoreTextXLocation and x < 200
-            y_loc: bool = y > scoreTextYLocation and y < 26
+            #     If x and y coordinates lie beneath the score text area
+            #     we need to choose new coordinates for the prey because it would be hard to see the score otherwise
+            x_loc: bool = x > scoreTextXLocation and x < 200 # flag for whether x is within score text area
+            y_loc: bool = y > scoreTextYLocation and y < 26 # flag for whether y is within score text area
 
-            #Generate new coordinates until we find coordinates out of score text
+            #Generate new coordinates until we find coordinates out of score text area
             while x_loc and y_loc:
                 x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
                 y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+                # Recheck if new coordinates are still within score text area
                 x_loc: bool = x > scoreTextXLocation and x < 200
                 y_loc: bool = y > scoreTextYLocation and y < 26
-                if not x_loc and y_loc:
-                    break
 
             #Condition 2 :
             #     Looping all the tuples of coordinates in the snakeCoordinates list
             #     following same algorithm in the move function
             #     ensuring new prey doesn't touch snake
+            HIT_SNAKE: bool = False # flag for whether prey will touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
-                x_closeness: int = abs(x - snake_x)
-                y_closeness: int = abs(y - snake_y)
+                x_closeness: int = abs(x - snake_x) # distance between x coordinate of prey and snake
+                y_closeness: int = abs(y - snake_y) # distance between y coordinate of prey and snake
                 if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
-                    break # choose x and y values again
-            
-            #break loop when finally chosen x and y values
-            break
+                    HIT_SNAKE = True
+                    break # Stop checking other snake coordinates becuase we already know it hits snake and we need to generate new coordinates for prey
+            if HIT_SNAKE:
+                continue # If hit snake, skip the rest of the cycle and generate new coordinates
+            else:
+                break # If prey doesn't touch snake and is out of score text area, break and use these coordinates for prey
 
         #After loop choosing final x and y values to choose center coordinates of prey
         self.preyPosition: tuple = (x,y)
