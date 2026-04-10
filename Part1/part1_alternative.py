@@ -378,14 +378,17 @@ class Game():
             #     Looping all the tuples of coordinates in the snakeCoordinates list
             #     following same algorithm in the move function
             #     ensuring new prey doesn't touch snake
+            HIT_SNAKE: bool = False # flag for whether prey will touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
-                x_closeness: int = abs(x - snake_x)
-                y_closeness: int = abs(y - snake_y)
+                x_closeness: int = abs(x - snake_x) # distance between x coordinate of prey and snake
+                y_closeness: int = abs(y - snake_y) # distance between y coordinate of prey and snake
                 if (x_closeness <= DISTANCE_FROM_SNAKE and y_closeness <= DISTANCE_FROM_SNAKE):
-                    break # choose x and y values again
-            
-            #break loop when finally chosen x and y values
-            break
+                    HIT_SNAKE = True
+                    break # Stop checking other snake coordinates becuase we already know it hits snake and we need to generate new coordinates for prey
+            if HIT_SNAKE:
+                continue # If hit snake, skip the rest of the cycle and generate new coordinates
+            else:
+                break # If prey doesn't touch snake and is out of score text area, break and use these coordinates for prey
 
         #After loop choosing final x and y values to choose center coordinates of prey
         self.preyPosition: tuple = (x,y)
