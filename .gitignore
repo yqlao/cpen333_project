@@ -17,3 +17,6 @@ venv.bak/
 .idea/
 *.swp
 *.swo
+
+*.docx
+*.tmp
