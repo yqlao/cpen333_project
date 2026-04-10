@@ -11,9 +11,8 @@ import queue
 import random
 import time
 
-#PyQt5 
+#PyQt5 library with modules and classes to be used 
 import sys
-
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QGraphicsView, QGraphicsScene,
     QPushButton, QGraphicsLineItem, QLabel
@@ -21,7 +20,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QPen, QBrush
 from PyQt5.QtCore import Qt, QTimer, QLineF, QRectF, QObject, QEvent
 
-# ----- NEW GUI CLASS TO ADJUST FOR PYQT5
+# ----- NEW GUI CLASS TO ADJUST FOR PYQT5 -----
 class Gui(QMainWindow):
     """
         This updated class takes care of the game's graphic user interface (gui)
@@ -46,8 +45,8 @@ class Gui(QMainWindow):
         self.bgview.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         #To install event filter for key access
-        self._keyFilter = KeyFilter(self)
-        self.bgview.installEventFilter(self._keyFilter)
+        self._keyDetection = KeyDetection(self)
+        self.bgview.installEventFilter(self._keyDetection)
 
         #Initial score Display
         self.scoreLabel = QLabel("Your Score: 0", self)
@@ -60,17 +59,7 @@ class Gui(QMainWindow):
         )
 
         #Initial snake coordinates list
-        self._snakeSegments = []
-
-    # ── Fallback: also handle on the window itself ────────────────────────────
-    def keyPressEvent(self, event):
-        """
-            This method is used at the end to display a
-            game over button.
-        """
-        direction = KEY_MAP.get(event.key())
-        if direction:
-            game.whenAnArrowKeyIsPressed(direction)
+        self.__snakelist = []
 
     #------For queue handler method calls---------
     #for move task 
@@ -79,32 +68,31 @@ class Gui(QMainWindow):
             This method is used for the move task on the queue handler
             to update the snake.
         """
-        pen = QPen(Qt.white, SNAKE_ICON_WIDTH)
+        drawSnake = QPen(Qt.white, SNAKE_ICON_WIDTH)
 
-        needed = max(len(coordinates) - 1, 0)
+        # if there are n points, there are n-1 segments
+        maxSegments = max(len(coordinates) - 1, 0) 
 
-        while len(self._snakeSegments) < needed:
-            item = QGraphicsLineItem()
-            item.setPen(pen)
-            self.bg.addItem(item)
-            self._snakeSegments.append(item)
+        # adding line graphics when snake grows
+        while len(self.__snakelist) < maxSegments:
+            snake_extend = QGraphicsLineItem()  #create new line
+            snake_extend.setPen(drawSnake)
+            self.bg.addItem(snake_extend) # add to screen
+            self.__snakelist.append(snake_extend)
 
-        while len(self._snakeSegments) > needed:
-            item = self._snakeSegments.pop()
-            self.bg.removeItem(item)
+        # to position new lines on the correct coordinates
+        for i, snake_extend in enumerate(self.__snakelist):
+            x0, y0 = coordinates[i]
+            x1, y1 = coordinates[i + 1]
+            snake_extend.setLine(QLineF(x0, y0, x1, y1))
+            snake_extend.setPen(drawSnake) #moving line to new position
 
-        for i, item in enumerate(self._snakeSegments):
-            x1, y1 = coordinates[i]
-            x2, y2 = coordinates[i + 1]
-            item.setLine(QLineF(x1, y1, x2, y2))
-            item.setPen(pen)
-
-    def updatePrey(self, coords):
+    def updatePrey(self, coordinates):
         """
             This method is used for the move task on the queue handler
             to update the snake.
         """
-        x1, y1, x2, y2 = coords
+        x1, y1, x2, y2 = coordinates #we update 4 coordinates of the prey
         self.preyIcon.setRect(QRectF(x1, y1, x2 - x1, y2 - y1))
 
     def updateScore(self, score):
@@ -112,7 +100,7 @@ class Gui(QMainWindow):
             This method is used for the score task on the queue handler
             to update the score.
         """
-        self.scoreLabel.setText(f"Your Score: {score}")
+        self.scoreLabel.setText(f"Your Score: {score}") 
 
     def gameOver(self):
         """
@@ -120,24 +108,31 @@ class Gui(QMainWindow):
             game over button.
         """
         btn = QPushButton("Game Over!")
-        btn.setFixedSize(200, 100)
+        btn.setFixedSize(125, 75)
         btn.clicked.connect(self.close) #to close window when clicked
         proxy = self.bg.addWidget(btn)
-        proxy.setPos(200, 100) 
+        proxy.setPos(187.5, 112.5) 
 
-class KeyFilter(QObject):
+class KeyDetection(QObject):
     """
-    Event filter installed on QGraphicsView.
-    Intercepts key presses so arrow keys work even when the view has focus
-    (which it always does on Mac).
+        To ensure pressing arrow keys are detected properly
+        before the queue handler tasks run on the window.
     """
-    def eventFilter(self, obj, event):
+    def eventFilter(self, object, event):
+        """
+            Qt class to monitor every event 
+            and know whether arrow keys are pressed
+        """
+        # Checking if event pressed one of the arrow keys
         if event.type() == QEvent.KeyPress:
-            direction = KEY_MAP.get(event.key())
-            if direction:
-                game.whenAnArrowKeyIsPressed(direction)
-                return True          # swallow the event
-        return super().eventFilter(obj, event)
+            direction = KEY_MAP.get(event.key()) #map key to direction
+
+            if direction: # if the key detected is an arrow key
+                game.whenAnArrowKeyIsPressed(direction) #move snake to direction
+                return True 
+            
+        #otherwise return to default 
+        return super().eventFilter(object, event) 
     
 class QueueHandler:
     """
@@ -175,7 +170,7 @@ class QueueHandler:
                     gui.updateScore(task["score"])
                 self.queue.task_done()
         except queue.Empty:
-            gui.root.after(100, self.queueHandler)
+            pass
 
 class Game():
     '''
@@ -226,15 +221,16 @@ class Game():
         """
         currentDirection = self.direction
 
-        # We remove keysym
+        # We remove keysym and modify code
         if (currentDirection == "Left"  and e == "Right" or
             currentDirection == "Right" and e == "Left"  or
             currentDirection == "Up"    and e == "Down"  or
             currentDirection == "Down"  and e == "Up"):
             return
+        
         self.direction = e
 
-   def move(self) -> None:
+    def move(self) -> None:
         """ 
             This method implements what is needed to be done
             for the movement of the snake.
@@ -292,7 +288,7 @@ class Game():
         lastX, lastY = self.snakeCoordinates[-1]
         #complete the method implementation below
 
-        move_basis = 10 #how much snake moves in one step
+        move_basis: int = 10 #how much snake moves in one step
         currentDirection = self.direction
 
         #We return a tuple that represents next positioning of snake
@@ -347,13 +343,14 @@ class Game():
         THRESHOLD = 15   #sets how close prey can be to borders
         #complete the method implementation below
 
+        #constants from GUI class of coordinates for score text
+        scoreTextXLocation: int = 0
+        scoreTextYLocation: int = 15
+
         #Formula to find the maximum distance between snake and prey 
         # to ensure new prey is entirely away from snake 
         # (additional info on documentation)
         DISTANCE_FROM_SNAKE: int = (SNAKE_ICON_WIDTH + PREY_ICON_WIDTH) // 2
-
-        scoreTextXLocation = 60
-        scoreTextYLocation = 15
 
         while True:
             #Generate random x and y coordinates to choose where prey appears,
@@ -361,16 +358,21 @@ class Game():
             x: int = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
             y: int = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
-            #x_loc = x > scoreTextXLocation or x < 200
-            #y_loc = y > scoreTextYLocation or y < 25
+            #Condition 1 :
+            #     If x and y coordinates lie beneath the score text
+            #     estimated to be between these location values
+            x_loc: bool = x > scoreTextXLocation and x < 200
+            y_loc: bool = y > scoreTextYLocation and y < 26
 
-            #while x_loc and y_loc:
-                #x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
-                #y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
+            #Generate new coordinates until we find coordinates out of score text
+            while x_loc and y_loc:
+                x = random.randint(THRESHOLD, WINDOW_WIDTH - THRESHOLD)
+                y = random.randint(THRESHOLD, WINDOW_HEIGHT - THRESHOLD)
 
-            #Looping all the tuples of coordinates in the snakeCoordinates list
-            #  following same algorithm in the move function
-            #  ensuring new prey doesn't touch snake
+            #Condition 2 :
+            #     Looping all the tuples of coordinates in the snakeCoordinates list
+            #     following same algorithm in the move function
+            #     ensuring new prey doesn't touch snake
             for (snake_x, snake_y) in self.snakeCoordinates:
                 x_closeness: int = abs(x - snake_x)
                 y_closeness: int = abs(y - snake_y)
@@ -392,6 +394,7 @@ class Game():
         #Call prey task in queue handler
         self.queue.put({"prey": preyCoordinates})
 
+
 if __name__ == "__main__":
     #some constants for our GUI
     WINDOW_WIDTH = 500           
@@ -411,15 +414,21 @@ if __name__ == "__main__":
         Qt.Key_Down:  "Down",
     }
 
-    app = QApplication(sys.argv)
+    #create main application, required for PyQt GUI
+    app = QApplication(sys.argv) 
 
-    gameQueue = queue.Queue()
-    game = Game()
-    gui  = Gui()
-    gui.show()
+    gameQueue = queue.Queue()     #instantiate a queue object using python's queue class
 
-    qh = QueueHandler()
+    game = Game()        #instantiate the game object
 
-    threading.Thread(target=game.superloop, daemon=True).start()
+    gui = Gui()    #instantiate the game user interface
+    gui.show()     # display gui
+    
+    qh = QueueHandler()  #instantiate the queue handler    
+    
+    #start a thread with the main loop of the game
+    threading.Thread(target = game.superloop, daemon=True).start()
 
-    sys.exit(app.exec_())
+    #start GUI event loop 
+    sys.exit(app.exec_()) 
+    
